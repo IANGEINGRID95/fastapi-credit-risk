@@ -1,0 +1,51 @@
+name: Deploy FastAPI to AWS EC2
+
+on:
+  push:
+    branches:
+      - master  # Change ici si ta branche est 'master'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Build Docker image
+        run: |
+          docker build -t fastapi-app .
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Push Docker Image to Docker Hub
+        run: |
+          docker tag fastapi-app ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+
+      - name: Deploy on EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOST: ${{ secrets.AWS_HOST }}
+          USER: "ubuntu"
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
+            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+            docker stop fastapi-container || true
+            docker rm fastapi-container || true
+            docker run -d -p 8000:8000 --name fastapi-container ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+          EOF
