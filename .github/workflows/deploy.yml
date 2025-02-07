@@ -3,7 +3,7 @@ name: Deploy FastAPI to AWS EC2
 on:
   push:
     branches:
-      - main  # Change ici si ta branche est 'master'
+      - master  # Change ici si ta branche est 'master'
 
 jobs:
   deploy:
