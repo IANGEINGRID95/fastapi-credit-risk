@@ -1,51 +1,34 @@
-name: Deploy FastAPI to AWS EC2
+name: CI/CD Pipeline with MLflow and EC2 Deployment
 
 on:
   push:
     branches:
-      - main  # Change ici si ta branche est 'master'
+      - main  # Branche sur laquelle vous souhaitez déployer
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest  # Utiliser Ubuntu comme environnement pour le runner
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v2  # Vérifie le code du dépôt
 
-      - name: Set up Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'  # La version de Python que vous utilisez
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt  # Installe toutes les dépendances du fichier requirements.txt
 
-      - name: Build Docker image
-        run: |
-          docker build -t fastapi-app .
+    - name: Run MLflow experiment
+      run: |
+        python scripts/train_model.py  # Exécutez le script d’entraînement du modèle et d’expérimentation avec MLflow
 
-      - name: Login to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-      - name: Push Docker Image to Docker Hub
-        run: |
-          docker tag fastapi-app ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-
-      - name: Deploy on EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-          HOST: ${{ secrets.AWS_HOST }}
-          USER: "ubuntu"
-        run: |
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
-            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-            docker stop fastapi-container || true
-            docker rm fastapi-container || true
-            docker run -d -p 8000:8000 --name fastapi-container ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-          EOF
+    - name: Deploy to EC2
+      run: |
+        ssh -i ${{ secrets.EC2_KEY }} ec2-user@${{ secrets.EC2_IP }} 'cd /path/to/app && git pull origin main && systemctl restart fastapi-app'
+      env:
+        EC2_IP: ${{ secrets.EC2_IP }}
+        EC2_KEY: ${{ secrets.EC2_KEY }}
