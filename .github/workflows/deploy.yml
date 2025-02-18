@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip  # Mettre à jour pip pour éviter les problèmes de version
-        pip install -r requirements.txt  # Installe toutes les dépendances du fichier requirements.txt
+        pip install --no-cache-dir -r requirements.txt  # Ignorer le cache et installer les dépendances
 
     - name: Run MLflow experiment
       run: |
