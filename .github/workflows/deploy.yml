@@ -30,9 +30,30 @@ jobs:
       run: |
         python train_model.py  # Exécutez le script d’entraînement du modèle et d’expérimentation avec MLflow
 
-    - name: Deploy to EC2
-      run: |
-        ssh -i ${{ secrets.EC2_KEY }} ec2-user@${{ secrets.EC2_IP }} 'cd /path/to/app && git pull origin main && systemctl restart fastapi-app'
-      env:
-        EC2_IP: ${{ secrets.EC2_IP }}
-        EC2_KEY: ${{ secrets.EC2_KEY }}
+      - name: Build Docker image
+        run: |
+          docker build -t fastapi-app .  # Construire l'image Docker de ton application
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin  # Connexion à Docker Hub
+
+      - name: Push Docker Image to Docker Hub
+        run: |
+          docker tag fastapi-app ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest  # Pousser l'image sur Docker Hub
+
+      - name: Deploy on EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOST: ${{ secrets.AWS_HOST }}
+          USER: "ubuntu"
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
+            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest  # Récupérer l'image Docker sur EC2
+            docker stop fastapi-container || true
+            docker rm fastapi-container || true
+            docker run -d -p 8000:8000 --name fastapi-container ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest  # Exécuter l'application sur EC2
+          EOF
