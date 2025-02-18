@@ -25,30 +25,29 @@ jobs:
     - name: Install MLflow (if not in requirements.txt)
       run: |
           pip install mlflow  # Assurer l'installation de MLflow
-
     - name: Run MLflow experiment
       run: |
         python train_model.py  # Exécutez le script d’entraînement du modèle et d’expérimentation avec MLflow
-
-      - name: Build Docker image
-        run: |
+        
+    - name: Build Docker image
+      run: |
           docker build -t fastapi-app .  # Construire l'image Docker de ton application
 
-      - name: Login to Docker Hub
-        run: |
+    - name: Login to Docker Hub
+      run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin  # Connexion à Docker Hub
 
-      - name: Push Docker Image to Docker Hub
-        run: |
+    - name: Push Docker Image to Docker Hub
+      run: |
           docker tag fastapi-app ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest  # Pousser l'image sur Docker Hub
 
-      - name: Deploy on EC2
-        env:
+    - name: Deploy on EC2
+      env:
           PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
           HOST: ${{ secrets.AWS_HOST }}
           USER: "ubuntu"
-        run: |
+      run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
           ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
