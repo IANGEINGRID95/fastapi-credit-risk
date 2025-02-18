@@ -25,7 +25,7 @@ jobs:
 
     - name: Run MLflow experiment
       run: |
-        python scripts/train_model.py  # Exécutez le script d’entraînement du modèle et d’expérimentation avec MLflow
+        python data/train_model.py  # Exécutez le script d’entraînement du modèle et d’expérimentation avec MLflow
 
     - name: Deploy to EC2
       run: |
