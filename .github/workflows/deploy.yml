@@ -22,6 +22,9 @@ jobs:
       run: |
         pip install --upgrade pip  # Mettre à jour pip pour éviter les problèmes de version
         pip install --no-cache-dir -r requirements.txt  # Ignorer le cache et installer les dépendances
+    - name: Install MLflow (if not in requirements.txt)
+        run: |
+          pip install mlflow  # Assurer l'installation de MLflow
 
     - name: Run MLflow experiment
       run: |
